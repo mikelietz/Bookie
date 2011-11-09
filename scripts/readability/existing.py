@@ -8,12 +8,12 @@ import transaction
 
 from ConfigParser import ConfigParser
 from os import path
+from requests import async
 
 from bookie.lib.readable import ReadUrl
 
 from bookie.models import initialize_sql
 from bookie.models import Bmark
-from bookie.models import Hashed
 from bookie.models import Readable
 
 PER_TRANS = 10
@@ -93,7 +93,7 @@ if __name__ == "__main__":
                 # we take off the offset because each time we run, we should have
                 # new ones to process. The query should return the 10 next
                 # non-imported urls
-                url_list = Bmark.query.outerjoin(Readable, Bmark.readable).\
+                bmark_list = Bmark.query.outerjoin(Readable, Bmark.readable).\
                             filter(Readable.imported == None).\
                             limit(PER_TRANS).all()
 
@@ -101,38 +101,52 @@ if __name__ == "__main__":
                 # we need a way to handle this query. If we offset and we clear
                 # errors along the way, we'll skip potential retries
                 # but if we don't we'll just keep getting errors and never end
-                url_list = Bmark.query.outerjoin(Readable).\
+                bmark_list = Bmark.query.outerjoin(Readable).\
                             filter(Readable.status_code != 200).all()
 
             else:
-                url_list = Bmark.query.limit(PER_TRANS).offset(ct).all()
+                bmark_list = Bmark.query.limit(PER_TRANS).offset(ct).all()
 
-            if len(url_list) < PER_TRANS:
+            if len(bmark_list) < PER_TRANS:
                 all = True
 
-            ct = ct + len(url_list)
+            ct = ct + len(bmark_list)
 
-            for bmark in url_list:
+            req_list = []
+
+            for bmark in bmark_list:
                 hashed = bmark.hashed
-                print hashed.url
+                url = ReadUrl.clean_url(hashed.url)
+                # read = ReadUrl.parse(hashed.url)
 
-                read = ReadUrl.parse(hashed.url)
-                if not read.is_image():
-                    if not bmark.readable:
-                        bmark.readable = Readable()
+                def process_read(response):
+                    """The callback after requests finds the url's content/etc """
+                    read = Readable()
+                    print dir(response)
+                    print response.status_code
 
-                    bmark.readable.content = read.content
-                else:
-                    if not bmark.readable:
-                        bmark.readable = Readable()
+                req_list.append(async.get(url,
+                                          hooks=dict(response=process_read)))
 
-                    bmark.readable.content = None
+
+                # if not read.is_image():
+                #     if not bmark.readable:
+                #         bmark.readable = Readable()
+
+                #     bmark.readable.content = read.content
+                # else:
+                #     if not bmark.readable:
+                #         bmark.readable = Readable()
+
+                #     bmark.readable.content = None
 
                 # set some of the extra metadata
-                bmark.readable.content_type = read.content_type
-                bmark.readable.status_code = read.status
-                bmark.readable.status_message = read.status_message
+                # bmark.readable.content_type = read.content_type
+                # bmark.readable.status_code = read.status
+                # bmark.readable.status_message = read.status_message
+
+            async.map(req_list)
 
             # let's do some count/transaction maint
-            transaction.commit()
-            transaction.begin()
+            # transaction.commit()
+            # transaction.begin()

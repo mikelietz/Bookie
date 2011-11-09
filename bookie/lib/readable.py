@@ -7,7 +7,7 @@ import lxml
 import socket
 import urllib2
 
-from BaseHTTPServer import BaseHTTPRequestHandler as HTTPH
+from BaseHTTPServer import BaseHTTPRequestHandler as HTTP
 from decruft import Document
 from decruft import page_parser
 from urlparse import urlparse
@@ -105,10 +105,7 @@ class ReadUrl(object):
     """Fetch a url and read some content out of it"""
 
     @staticmethod
-    def parse(url):
-        """Fetch the given url and parse out a Readable Obj for the content"""
-        read = Readable()
-
+    def clean_url(url):
         if not isinstance(url, unicode):
             url = url.decode('utf-8')
 
@@ -136,9 +133,17 @@ class ReadUrl(object):
                                               parsed[4],
                                               query=query)
 
+        return clean_url
+
+
+    @staticmethod
+    def parse(url, content):
+        """Fetch the given url and parse out a Readable Obj for the content"""
+        read = Readable()
+
         try:
-            LOG.debug('Readable Parsed: ' + clean_url)
-            fh = urllib2.urlopen(clean_url.encode('utf-8'))
+            LOG.debug('Readable Parsed: ' + url)
+            fh = urllib2.urlopen(url.encode('utf-8'))
 
             # if it works, then we default to a 200 request
             # it's ok, promise :)
