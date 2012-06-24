@@ -56,7 +56,7 @@ class BookieAPITest(unittest.TestCase):
         # if we want to test the readable fulltext side we want to make sure we
         # pass content into the new bookmark
         if content:
-            prms['content'] = "<h1>There's some content in here dude</h1>"
+            prms['content'] = "<p>There's some content in here dude</p>"
 
         # req_params = urllib.urlencode(prms)
         res = self.testapp.post('/api/v1/admin/bmark?',
